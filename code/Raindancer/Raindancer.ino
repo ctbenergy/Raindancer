@@ -58,11 +58,14 @@ Set to true only the correct CHASSIS
 #include "motorSensor.h"
 #include "DHT.h"
 #include "shutdown.h"
+#include "gps.h"
 
 
 /*********************************************************************/
 // Global Variables
 /*********************************************************************/
+#define VERSION "1.0.0 Raindancer"
+
 unsigned long loopCounter = 0;
 unsigned long maxLoopTime = 0;
 unsigned long startLoopTime = 0;
@@ -117,10 +120,11 @@ TEEPROM eeprom;
 // Buzzer
 BuzzerClass Buzzer;
 // Shutdown service
-//xdes1
 TShutdown shutdown;
 // DHT Temperature sensor
 TDHT dht( DHTTYPE);
+//GPS Service
+Tgps gps;
 //-----------------------------------------------------
 
 // Instantiate a new ThreadController
@@ -138,7 +142,7 @@ TBehaviour myBehaviour(myBlackboard);
 // Module Variables
 /*********************************************************************/
 
-unsigned long lastTimeShowError = 0;
+//unsigned long lastTimeShowError = 0;
 bool _diableErrorhandling = false;
 
 
@@ -233,13 +237,15 @@ void setup()
 	//Buzzer.setInterval(0); // will be controled by the class itselfe
 	Buzzer.enabled = false;  // will be controled by the class itselfe
     //---------------------------------
- //xdes1
     shutdown.setup();
     shutdown.setInterval(1000);
     shutdown.enabled = false;  // when activated, service initiate shutdown
     //---------------------------------
 	dht.setup();
 	dht.setInterval(20013);
+    //---------------------------------
+    gps.setup();
+    gps.setInterval(0);
     
 
     //------------
@@ -274,9 +280,9 @@ void setup()
 	controller.add(&rtc);
 
 	controller.add(&Buzzer);
-//xdes1
-    controller.add(&shutdown);
 
+    controller.add(&shutdown);
+    controller.add(&gps);
 	//---------------------------------
 	// Behaviour Objects konfigurieren
 	//---------------------------------
@@ -312,9 +318,6 @@ void setup()
 		chargeSystem.measureOffset();
 	}
 
-	errorHandler.setInfo(F("Setup finished. Loop is running.\r\n\r\n"));
-
-	errorHandler.setInfo(F("Press H for help.\r\n"));
 
 	// Show perimeter signals with arduino serial plotter
 	//perimeterSensoren.coilL.showADCWithoutOffset = true;
@@ -325,10 +328,6 @@ void setup()
 	//perimeterSensoren.coilR.showPSNRFunction = true;
 
 
-	//Startsound ausgeben
-	Buzzer.sound(SND_START);
-
-
 #if CONF_ENABLEWATCHDOG ==  true
 	// Wenn Watchdog enabled/disabled wurde, kann dieser nicht wieder disabled/enabled werden.
 	// Das geht nurl wenn der Microcontroller neu gestartet wird.
@@ -336,6 +335,11 @@ void setup()
 	errorHandler.setInfo(F("WATCHDOG ENABLED\r\n"));
 #endif
 
+    errorHandler.setInfo(F("Setup finished. Loop is running.\r\n"));
+    errorHandler.setInfo(F("Version %s\r\n\r\n"), VERSION);
+    errorHandler.setInfo(F("Press H for help.\r\n"));
+    //Startsound ausgeben
+    Buzzer.sound(SND_START);
 
 }
 
@@ -374,11 +378,13 @@ void loop()
 				_controlManuel = true;
 				motor.stopAllMotors();
 
+                /*
 				if (millis() - lastTimeShowError > 2000) {
 					lastTimeShowError = millis();
 					doMyLED = !doMyLED;
 					errorHandler.printError();
 				}
+                */
 			}
 		}
 
